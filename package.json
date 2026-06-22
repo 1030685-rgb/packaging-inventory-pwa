@@ -1,0 +1,15 @@
+{
+  "name": "packaging-inventory-pwa",
+  "version": "1.0.0",
+  "description": "可安裝到 iPhone 主畫面的包材庫存管理 PWA，含本機通知提醒。",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
