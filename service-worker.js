@@ -1,13 +1,15 @@
-const CACHE_NAME = "packaging-inventory-pwa-v1";
+const CACHE_NAME = "packaging-inventory-pwa-v2";
+const SCOPE_URL = new URL(self.registration.scope);
+const SCOPE_PATH = SCOPE_URL.pathname;
 const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/style.css",
-  "/script.js",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
-];
+  "./",
+  "index.html",
+  "style.css",
+  "script.js",
+  "manifest.json",
+  "icons/icon-192.png",
+  "icons/icon-512.png"
+].map((path) => new URL(path, self.registration.scope).toString());
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -30,15 +32,25 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin || !requestUrl.pathname.startsWith(SCOPE_PATH)) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request).then((response) => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then((response) => {
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+
         return response;
-      }).catch(() => caches.match("/index.html"));
+      }).catch(() => caches.match(new URL("index.html", self.registration.scope).toString()));
     })
   );
 });
@@ -50,7 +62,7 @@ self.addEventListener("notificationclick", (event) => {
       for (const client of clientList) {
         if ("focus" in client) return client.focus();
       }
-      if (clients.openWindow) return clients.openWindow("/");
+      if (clients.openWindow) return clients.openWindow(self.registration.scope);
       return undefined;
     })
   );

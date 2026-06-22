@@ -136,8 +136,8 @@ async function notifyLowStockIfNeeded(item) {
 
   const options = {
     body: getNotificationBody(item),
-    icon: "icons/icon-192.png",
-    badge: "icons/icon-192.png",
+    icon: new URL("icons/icon-192.png", document.baseURI).href,
+    badge: new URL("icons/icon-192.png", document.baseURI).href,
     tag: `inventory-${item.id}-${item.currentStock}`,
     renotify: true
   };
@@ -263,7 +263,9 @@ async function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
 
   try {
-    serviceWorkerRegistration = await navigator.serviceWorker.register("service-worker.js");
+    serviceWorkerRegistration = await navigator.serviceWorker.register("./service-worker.js", {
+      scope: "./"
+    });
   } catch {
     serviceWorkerRegistration = null;
   }

@@ -2,21 +2,21 @@
   "name": "包材庫存管理",
   "short_name": "包材庫存",
   "description": "內部包材庫存管理與本機補貨提醒",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/packaging-inventory-pwa/",
+  "scope": "/packaging-inventory-pwa/",
   "display": "standalone",
   "background_color": "#f4f6f8",
   "theme_color": "#0f766e",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/packaging-inventory-pwa/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/packaging-inventory-pwa/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
