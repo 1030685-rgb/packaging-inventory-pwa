@@ -1,13 +1,13 @@
-const CACHE_NAME = "packaging-inventory-pwa-v4";
+const CACHE_NAME = "packaging-inventory-pwa-v5";
 const FIREBASE_SDK_ORIGIN = "https://www.gstatic.com";
 const SCOPE_URL = new URL(self.registration.scope);
 const SCOPE_PATH = SCOPE_URL.pathname;
 const APP_SHELL = [
   "./",
   "index.html",
-  "style.css",
-  "script.js",
-  "firebase.js",
+  "style.css?v=20260623-2",
+  "script.js?v=20260623-2",
+  "firebase.js?v=20260623-2",
   "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png"
@@ -44,8 +44,6 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
       return fetch(event.request).then((response) => {
         if (response.ok) {
           const responseClone = response.clone();
@@ -55,7 +53,7 @@ self.addEventListener("fetch", (event) => {
         }
 
         return response;
-      }).catch(() => caches.match(new URL("index.html", self.registration.scope).toString()));
+      }).catch(() => cachedResponse || caches.match(new URL("index.html", self.registration.scope).toString()));
     })
   );
 });

@@ -1,4 +1,4 @@
-import { db, isFirebaseConfigured } from "./firebase.js";
+import { db, isFirebaseConfigured } from "./firebase.js?v=20260623-2";
 import {
   addDoc,
   collection,
