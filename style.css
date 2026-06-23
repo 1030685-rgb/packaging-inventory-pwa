@@ -134,6 +134,16 @@ h1 {
   line-height: 1.5;
 }
 
+.sync-status {
+  margin-left: auto;
+  text-align: right;
+}
+
+.notice-status[data-type="error"] {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .cell-input {
   padding: 0 10px;
 }
@@ -260,6 +270,11 @@ tbody tr.low-stock td {
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .sync-status {
+    margin-left: 0;
+    text-align: left;
   }
 
   .notification-tools {

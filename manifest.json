@@ -1,7 +1,7 @@
 {
   "name": "包材庫存管理",
   "short_name": "包材庫存",
-  "description": "內部包材庫存管理與本機補貨提醒",
+  "description": "可安裝到 iPhone 主畫面的包材庫存管理 PWA，使用 Firebase Firestore 即時同步資料。",
   "start_url": "/packaging-inventory-pwa/",
   "scope": "/packaging-inventory-pwa/",
   "display": "standalone",

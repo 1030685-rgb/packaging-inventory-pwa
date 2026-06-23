@@ -17,12 +17,12 @@
     <header class="app-header">
       <div>
         <h1>包材庫存管理</h1>
-        <p>內部包材庫存紀錄與補貨提醒</p>
+        <p>使用 Firebase Firestore 即時同步手機與電腦的庫存資料。</p>
       </div>
       <button class="primary-button" id="addItemButton" type="button">新增包材</button>
     </header>
 
-    <section class="toolbar" aria-label="搜尋工具">
+    <section class="toolbar" aria-label="庫存工具列">
       <label class="search-field" for="searchInput">
         <span>搜尋包材名稱</span>
         <input id="searchInput" type="search" placeholder="輸入名稱，例如 S 箱">
@@ -31,9 +31,10 @@
         <button class="secondary-button" id="enableNotificationsButton" type="button">開啟庫存通知</button>
         <span class="notice-status" id="notificationStatus" role="status"></span>
       </div>
+      <span class="notice-status sync-status" id="syncStatus" role="status">正在連線 Firebase...</span>
     </section>
 
-    <section class="table-wrap" aria-label="包材庫存表格">
+    <section class="table-wrap" aria-label="包材庫存列表">
       <table>
         <thead>
           <tr>
@@ -46,10 +47,10 @@
         </thead>
         <tbody id="inventoryTableBody"></tbody>
       </table>
-      <div class="empty-state" id="emptyState" hidden>找不到符合條件的包材</div>
+      <div class="empty-state" id="emptyState" hidden>目前沒有包材，請先新增包材。</div>
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>

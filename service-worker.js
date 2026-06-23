@@ -1,4 +1,5 @@
-const CACHE_NAME = "packaging-inventory-pwa-v2";
+const CACHE_NAME = "packaging-inventory-pwa-v3";
+const FIREBASE_SDK_ORIGIN = "https://www.gstatic.com";
 const SCOPE_URL = new URL(self.registration.scope);
 const SCOPE_PATH = SCOPE_URL.pathname;
 const APP_SHELL = [
@@ -6,6 +7,7 @@ const APP_SHELL = [
   "index.html",
   "style.css",
   "script.js",
+  "firebase.js",
   "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png"
@@ -33,7 +35,10 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
-  if (requestUrl.origin !== self.location.origin || !requestUrl.pathname.startsWith(SCOPE_PATH)) {
+  const isAppRequest = requestUrl.origin === self.location.origin && requestUrl.pathname.startsWith(SCOPE_PATH);
+  const isFirebaseSdkRequest = requestUrl.origin === FIREBASE_SDK_ORIGIN && requestUrl.pathname.startsWith("/firebasejs/10.12.5/");
+
+  if (!isAppRequest && !isFirebaseSdkRequest) {
     return;
   }
 
