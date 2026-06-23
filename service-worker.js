@@ -1,4 +1,4 @@
-const CACHE_NAME = "packaging-inventory-pwa-v3";
+const CACHE_NAME = "packaging-inventory-pwa-v4";
 const FIREBASE_SDK_ORIGIN = "https://www.gstatic.com";
 const SCOPE_URL = new URL(self.registration.scope);
 const SCOPE_PATH = SCOPE_URL.pathname;

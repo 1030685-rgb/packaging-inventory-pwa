@@ -1,8 +1,8 @@
 # 包材庫存管理 PWA
 
-這是一個可安裝到 iPhone 主畫面的包材庫存管理 PWA。資料改用 Firebase Firestore 儲存，手機 PWA 和電腦網頁會共用同一份庫存資料並即時同步。
+這是一個可安裝到 iPhone 主畫面的包材庫存管理 PWA。包材資料全部儲存在 Firebase Firestore，手機 PWA、電腦網頁與多人裝置會使用同一份雲端資料並即時同步。
 
-正式網址：
+GitHub Pages 網址：
 
 ```text
 https://1030685-rgb.github.io/packaging-inventory-pwa/
@@ -15,49 +15,44 @@ https://1030685-rgb.github.io/packaging-inventory-pwa/
 - 修改現有庫存
 - 修改最低庫存
 - 刪除包材
-- Firestore 即時同步手機與電腦資料
-- Firestore 離線快取，短暫離線後可在恢復網路時同步
-- 自動判斷狀態：現有庫存小於或等於最低庫存時顯示「需補貨」
+- 輸入取用數量並扣庫存
+- 自動累計取用量 `totalUsed`
+- 自動計算建議叫貨數量：`Math.max(0, minStock - currentStock)`
+- 自動判斷狀態：`currentStock <= minStock` 顯示「需補貨」
 - 需補貨項目使用淡紅色標示
-- 使用 Notification API 發送手機本機通知
-- 使用 localStorage 記錄通知是否已發送，避免同一包材同一庫存數字重複通知
-- 可透過 Safari 加入 iPhone 主畫面
+- Firestore `onSnapshot` 即時同步手機、電腦與多人裝置
+- Firestore 離線快取，短暫離線後恢復網路會自動同步
+- 使用 Notification API 發送本機通知
+- 使用 localStorage 記錄通知去重，不再用 localStorage 儲存庫存主資料
 
-## Firebase 設定
+## Firestore 資料格式
 
-### 1. 建立 Firebase 專案
-
-1. 前往 Firebase Console。
-2. 建立新專案。
-3. 專案建立後，進入「專案設定」。
-4. 在「你的應用程式」新增 Web App。
-5. 複製 Firebase SDK 設定物件。
-
-### 2. 建立 Firestore Database
-
-1. 在 Firebase Console 左側選單進入 Firestore Database。
-2. 點選「建立資料庫」。
-3. 測試階段可先選擇測試模式。
-4. 建立完成後，本網站會使用 collection：
+Collection 名稱：
 
 ```text
 packagingItems
 ```
 
-每筆 document 格式：
+每筆 document：
 
 ```js
 {
   name: "紙箱",
-  currentStock: 10,
-  minStock: 5,
+  currentStock: 100,
+  minStock: 20,
+  totalUsed: 0,
   updatedAt: serverTimestamp()
 }
 ```
 
-### 3. 填入 firebase.js
+## Firebase Config 去哪裡找
 
-打開 `firebase.js`，把 Firebase Console 提供的設定貼到 `firebaseConfig`：
+1. 前往 Firebase Console。
+2. 選擇你的 Firebase 專案。
+3. 進入「專案設定」。
+4. 在「你的應用程式」新增或選擇 Web App。
+5. 找到 Firebase SDK 設定，複製 `firebaseConfig`。
+6. 打開 `firebase.js`，把同一組設定貼到這裡：
 
 ```js
 const firebaseConfig = {
@@ -70,11 +65,18 @@ const firebaseConfig = {
 };
 ```
 
-未填入前，網站會顯示「尚未設定 Firebase」，不會寫入資料。
+手機和電腦必須使用同一個部署版本、同一個 `firebase.js`、同一組 Firebase Config，才會連到同一個 Firestore 資料庫。
 
-### 4. Firestore Rules
+## 建立 Firestore Database
 
-測試用 rules：
+1. 在 Firebase Console 進入 Firestore Database。
+2. 點「建立資料庫」。
+3. 測試階段可以先選測試模式。
+4. 建立完成後不需要手動建立 collection，網站第一次新增包材時會自動建立 `packagingItems`。
+
+## Firestore Rules 測試版
+
+測試時可先使用：
 
 ```js
 rules_version = '2';
@@ -87,61 +89,109 @@ service cloud.firestore {
 }
 ```
 
-注意：以上 rules 僅適合測試。正式使用時應加入登入權限與更嚴格的讀寫規則，避免任何人都能修改庫存資料。
+注意：這組 rules 只適合測試。正式使用請加上 Firebase Authentication 與權限限制，避免任何人都能讀寫庫存資料。
 
-## GitHub Pages 部署
+## 部署到 Firebase Hosting
 
-本專案已包含 GitHub Actions 部署檔案：
+先安裝 Firebase CLI：
+
+```bash
+npm install -g firebase-tools
+```
+
+登入 Firebase：
+
+```bash
+firebase login
+```
+
+初始化 Hosting：
+
+```bash
+firebase init hosting
+```
+
+初始化時建議：
+
+- Public directory 使用目前專案根目錄：`.`
+- Single-page app rewrite 選 `Yes`
+- 不要覆蓋既有 `index.html`
+
+如果已經有 `firebase.json`，也可以直接部署：
+
+```bash
+firebase deploy
+```
+
+## 部署到 GitHub Pages
+
+本專案也保留 GitHub Actions 部署：
 
 ```text
 .github/workflows/deploy.yml
 ```
 
-GitHub Pages 設定方式：
+在 GitHub repo 的 `Settings` → `Pages` 中，Source 選 `GitHub Actions`。推送到 `main` 後會自動部署。
 
-1. 進入 repository：`1030685-rgb/packaging-inventory-pwa`
-2. 開啟 `Settings`
-3. 進入 `Pages`
-4. `Source` 選擇 `GitHub Actions`
-5. 推送到 `main` 分支後，GitHub Actions 會自動部署
-6. 部署完成後打開：
+## 清除手機 PWA 舊快取
 
-```text
-https://1030685-rgb.github.io/packaging-inventory-pwa/
-```
+如果手機 PWA 還看到舊版畫面：
 
-## iPhone 加入主畫面
+1. iPhone 開啟「設定」。
+2. 進入 Safari。
+3. 點「進階」。
+4. 點「網站資料」。
+5. 搜尋你的網站網域，例如 `github.io` 或 Firebase Hosting 網域。
+6. 刪除該網站資料。
+7. 回到主畫面，刪除舊的 PWA 圖示。
+8. 用 Safari 重新打開網站，再加入主畫面。
 
-1. 用 iPhone Safari 打開正式網址。
-2. 點 Safari 下方分享按鈕。
-3. 選擇「加入主畫面」。
-4. 從主畫面打開「包材庫存」App。
+本專案的 `service-worker.js` 已更新快取版本，部署後通常重新整理或重新開啟 PWA 就會取得新版。
 
-## 開啟本機通知
+## 測試手機和電腦同步
 
-1. 從 iPhone 主畫面打開 App。
-2. 點「開啟庫存通知」。
-3. 允許通知權限。
-4. 當 Firestore 同步到需補貨項目時，會發送本機通知。
+1. 確認 `firebase.js` 已填入同一組 Firebase Config。
+2. 確認 Firestore rules 允許測試讀寫。
+3. 用電腦打開網站。
+4. 用手機 Safari 或主畫面 PWA 打開同一個網站。
+5. 電腦新增一筆包材，手機應即時出現。
+6. 手機修改現有庫存，電腦應即時更新。
+7. 任一裝置刪除包材，其他裝置應同步刪除。
 
-iOS PWA 通知限制：
+## 測試扣庫存
 
-- iPhone 必須使用支援 PWA 通知的 iOS 版本。
-- 通常需要先加入主畫面，再從主畫面 App 開啟。
-- 使用者必須允許通知。
-- 如果瀏覽器或系統不支援 Notification API，畫面會提示「此裝置不支援本機通知，請改用畫面內提醒」。
+1. 建立一筆包材，例如現有庫存 `100`、最低庫存 `20`。
+2. 在「取用數量」輸入 `5`。
+3. 按「扣庫存」。
+4. 現有庫存應變成 `95`。
+5. 累計取用量 `totalUsed` 應增加 `5`。
+6. 另一台手機或電腦應即時看到相同結果。
+7. 如果取用數量大於現有庫存，畫面會跳出「取用數量不可大於現有庫存」。
 
-## 測試手機與電腦同步
+## 測試庫存不足通知
 
-1. 確認 `firebase.js` 已填入正確 Firebase 設定。
-2. 確認 Firestore rules 已允許測試讀寫。
-3. 用電腦打開正式網址。
-4. 用 iPhone Safari 或主畫面 PWA 打開同一網址。
-5. 在電腦新增一筆包材，手機應即時出現。
-6. 在手機修改現有庫存，電腦應即時更新。
-7. 在任一裝置刪除包材，另一台裝置應同步刪除。
-8. 將現有庫存改成小於或等於最低庫存，應顯示「需補貨」並在允許通知後發送本機通知。
+1. 在手機 PWA 點「開啟庫存通知」。
+2. 允許通知權限。
+3. 把現有庫存改成小於或等於最低庫存。
+4. 狀態應顯示「需補貨」並使用淡紅底。
+5. 通知標題為「哪項包材庫存不足需要」。
+6. 通知內容會包含包材名稱、目前庫存、最低庫存、建議叫貨數量。
+
+通知去重規則：
+
+- localStorage 只記錄 `notified_${documentId}_${currentStock}`。
+- 同一包材同一庫存數字不會重複通知。
+- 庫存恢復正常後會清除該包材通知紀錄。
+- 庫存再次低於最低庫存，或庫存數字變動後，會再次通知。
+
+## 常見同步問題
+
+- 手機和電腦沒有填同一組 Firebase Config。
+- Firestore rules 沒有開放測試讀寫。
+- 手機 PWA 還快取舊版 `script.js` 或 `firebase.js`。
+- Service worker 尚未更新，請重新整理、關閉重開 PWA，或清除網站資料。
+- 瀏覽器離線時會先使用 Firestore 離線快取，恢復網路後才同步雲端。
 
 ## 後端依賴
 
-此版本不需要 Node.js 後端、Express、Render 或 LINE 通知 API。GitHub Pages 會直接提供靜態檔案，資料同步由 Firebase Firestore 負責。
+此版本不需要 Node.js 後端、Express、Render 或 LINE 通知 API。資料同步由 Firebase Firestore 負責，靜態檔案可部署到 GitHub Pages 或 Firebase Hosting。

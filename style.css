@@ -34,7 +34,7 @@ input {
 }
 
 .app {
-  width: min(1120px, calc(100% - 32px));
+  width: min(1320px, calc(100% - 32px));
   margin: 32px auto;
 }
 
@@ -156,7 +156,7 @@ h1 {
 }
 
 .table-wrap {
-  overflow: hidden;
+  overflow-x: auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -170,7 +170,7 @@ table {
 
 th,
 td {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
@@ -216,6 +216,24 @@ tbody tr.low-stock td {
   background: #fff1f2;
 }
 
+.number-value {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-weight: 700;
+}
+
+.number-value.order-needed {
+  color: var(--warning-text);
+}
+
+.use-stock-controls {
+  display: grid;
+  grid-template-columns: minmax(76px, 1fr) auto;
+  gap: 8px;
+  min-width: 170px;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -231,6 +249,15 @@ tbody tr.low-stock td {
 .action-button.save {
   color: #fff;
   background: var(--primary);
+}
+
+.action-button.use-stock {
+  color: #fff;
+  background: #7c3aed;
+}
+
+.action-button.use-stock:hover {
+  background: #6d28d9;
 }
 
 .action-button.delete {
@@ -250,7 +277,7 @@ tbody tr.low-stock td {
 
 @media (max-width: 760px) {
   .app {
-    width: min(100% - 20px, 1120px);
+    width: min(100% - 20px, 1320px);
     margin: 16px auto;
   }
 
@@ -353,6 +380,11 @@ tbody tr.low-stock td {
   .actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .use-stock-controls {
+    grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .action-button {

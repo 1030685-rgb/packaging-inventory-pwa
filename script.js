@@ -4,9 +4,11 @@ import {
   collection,
   deleteDoc,
   doc,
+  increment,
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -26,6 +28,11 @@ const enableNotificationsButton = document.getElementById("enableNotificationsBu
 const notificationStatus = document.getElementById("notificationStatus");
 const syncStatus = document.getElementById("syncStatus");
 
+function toSafeNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.floor(number)) : 0;
+}
+
 function getStatus(item) {
   return item.currentStock > item.minStock
     ? { label: "正常", className: "normal" }
@@ -36,19 +43,24 @@ function isLowStock(item) {
   return item.currentStock <= item.minStock;
 }
 
+function getSuggestedOrder(item) {
+  return Math.max(0, item.minStock - item.currentStock);
+}
+
 function normalizeItem(id, data, hasPendingWrites = false) {
   return {
     id,
     name: data.name || "未命名包材",
-    currentStock: Number(data.currentStock) || 0,
-    minStock: Number(data.minStock) || 0,
+    currentStock: toSafeNumber(data.currentStock),
+    minStock: toSafeNumber(data.minStock),
+    totalUsed: toSafeNumber(data.totalUsed),
     updatedAt: data.updatedAt || null,
     hasPendingWrites
   };
 }
 
 function getNotificationBody(item) {
-  return `${item.name} 庫存不足，目前庫存 ${item.currentStock}，最低庫存 ${item.minStock}，請安排補貨。`;
+  return `${item.name} 庫存不足，目前庫存 ${item.currentStock}，最低庫存 ${item.minStock}，建議叫貨 ${getSuggestedOrder(item)} 個。`;
 }
 
 function supportsLocalNotifications() {
@@ -143,9 +155,9 @@ async function notifyLowStockIfNeeded(item) {
 
   try {
     if (serviceWorkerRegistration && "showNotification" in serviceWorkerRegistration) {
-      await serviceWorkerRegistration.showNotification("包材庫存不足", options);
+      await serviceWorkerRegistration.showNotification("哪項包材庫存不足需要", options);
     } else {
-      new Notification("包材庫存不足", options);
+      new Notification("哪項包材庫存不足需要", options);
     }
 
     localStorage.setItem(getNotificationKey(item), "true");
@@ -181,7 +193,7 @@ function renderTable() {
   tableBody.innerHTML = "";
   emptyState.textContent = isFirebaseConfigured
     ? "目前沒有包材，請先新增包材。"
-    : "尚未設定 Firebase，請先在 firebase.js 填入 firebaseConfig。";
+    : "尚未設定 Firebase，請先在 firebase.js 填入同一組 firebaseConfig。";
   emptyState.hidden = filteredItems.length > 0;
 
   filteredItems.forEach((item) => {
@@ -201,8 +213,20 @@ function renderTable() {
       <td data-label="最低庫存">
         <input class="cell-input" data-field="minStock" type="number" min="0" step="1" inputmode="numeric" value="${item.minStock}" ${isEditing ? "" : "disabled"}>
       </td>
+      <td data-label="累計取用量">
+        <span class="number-value">${item.totalUsed}</span>
+      </td>
+      <td data-label="建議叫貨數量">
+        <span class="number-value ${getSuggestedOrder(item) > 0 ? "order-needed" : ""}">${getSuggestedOrder(item)}</span>
+      </td>
       <td data-label="狀態">
         <span class="status-badge ${status.className}">${status.label}</span>
+      </td>
+      <td data-label="取用數量">
+        <div class="use-stock-controls">
+          <input class="cell-input use-quantity-input" data-field="useQuantity" type="number" min="1" step="1" inputmode="numeric" placeholder="0">
+          <button class="action-button use-stock" type="button" data-action="use-stock">扣庫存</button>
+        </div>
       </td>
       <td data-label="操作">
         <div class="actions">
@@ -229,6 +253,7 @@ async function addItem() {
       name: "新包材",
       currentStock: 0,
       minStock: 0,
+      totalUsed: 0,
       updatedAt: serverTimestamp()
     });
     editingIds.add(docRef.id);
@@ -251,8 +276,8 @@ async function updateItemFromRow(row) {
 
   const nextItem = {
     name: nameInput.value.trim() || "未命名包材",
-    currentStock: Math.max(0, Number(currentStockInput.value) || 0),
-    minStock: Math.max(0, Number(minStockInput.value) || 0)
+    currentStock: toSafeNumber(currentStockInput.value),
+    minStock: toSafeNumber(minStockInput.value)
   };
 
   try {
@@ -269,11 +294,77 @@ async function updateItemFromRow(row) {
   }
 }
 
+async function useStockFromRow(row) {
+  const id = row.dataset.id;
+  const item = items.find((currentItem) => currentItem.id === id);
+  const quantityInput = row.querySelector('[data-field="useQuantity"]');
+  const useQuantity = toSafeNumber(quantityInput.value);
+
+  if (!item) return;
+
+  if (useQuantity <= 0) {
+    alert("請輸入取用數量");
+    quantityInput.focus();
+    return;
+  }
+
+  if (useQuantity > item.currentStock) {
+    alert("取用數量不可大於現有庫存");
+    quantityInput.focus();
+    return;
+  }
+
+  try {
+    setSyncStatus("正在扣庫存...");
+    const itemRef = doc(db, COLLECTION_NAME, id);
+
+    if (navigator.onLine) {
+      await runTransaction(db, async (transaction) => {
+        const itemSnapshot = await transaction.get(itemRef);
+
+        if (!itemSnapshot.exists()) {
+          throw new Error("找不到這筆包材資料");
+        }
+
+        const latestItem = normalizeItem(id, itemSnapshot.data());
+
+        if (useQuantity > latestItem.currentStock) {
+          throw new Error("取用數量不可大於現有庫存");
+        }
+
+        transaction.update(itemRef, {
+          currentStock: latestItem.currentStock - useQuantity,
+          totalUsed: increment(useQuantity),
+          updatedAt: serverTimestamp()
+        });
+      });
+    } else {
+      await updateDoc(itemRef, {
+        currentStock: increment(-useQuantity),
+        totalUsed: increment(useQuantity),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    quantityInput.value = "";
+    setSyncStatus("已扣庫存，正在同步");
+  } catch (error) {
+    if (error.message === "取用數量不可大於現有庫存") {
+      alert("取用數量不可大於現有庫存");
+      quantityInput.focus();
+      return;
+    }
+
+    setSyncStatus(`扣庫存失敗：${error.message}`, "error");
+  }
+}
+
 function updateLiveStatus(row, item) {
   const status = getStatus(item);
   row.className = status.className === "low" ? "low-stock" : "";
   row.querySelector(".status-badge").className = `status-badge ${status.className}`;
   row.querySelector(".status-badge").textContent = status.label;
+  row.querySelector('[data-label="建議叫貨數量"] .number-value').textContent = getSuggestedOrder(item);
 }
 
 async function deleteItem(id) {
@@ -361,6 +452,11 @@ tableBody.addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "use-stock") {
+    useStockFromRow(row);
+    return;
+  }
+
   if (action === "delete") {
     const confirmed = confirm("確定要刪除這項包材嗎？");
     if (!confirmed) return;
@@ -384,7 +480,7 @@ tableBody.addEventListener("input", (event) => {
   }
 
   if (field === "currentStock" || field === "minStock") {
-    draft[field] = Math.max(0, Number(event.target.value) || 0);
+    draft[field] = toSafeNumber(event.target.value);
   }
 
   drafts.set(id, draft);
